@@ -24,6 +24,8 @@ export function AppShell() {
             Overview
           </NavLink>
           <NavLink to="/metrics">Metric register</NavLink>
+          <NavLink to="/about">About</NavLink>
+          <NavLink to="/architecture">Architecture</NavLink>
         </nav>
         <div className="sidebar-foot">
           <div>Policy Control Office</div>

@@ -110,10 +110,11 @@ export const metrics: RawMetric[] = [
     definitionStatus: 'provisional_pending_validation',
     ownerFunction: OWNER,
     controlStatement: null,
-    value: null,
-    asOf: null,
+    value: 3.2,
+    asOf: '2026-10-27',
     breachedOn: null,
-    coverageNote: 'No illustrative reading was supplied, so RAG is not evaluated.',
+    coverageNote:
+      'Illustrative synthetic reading for portfolio context. No breach story, trend history, or organizational breakdown was supplied.',
     trendCaption: null,
   },
   {
@@ -129,10 +130,11 @@ export const metrics: RawMetric[] = [
     definitionStatus: 'provisional_pending_validation',
     ownerFunction: OWNER,
     controlStatement: null,
-    value: null,
-    asOf: null,
+    value: 3.4,
+    asOf: '2026-10-27',
     breachedOn: null,
-    coverageNote: 'No illustrative reading was supplied, so RAG is not evaluated.',
+    coverageNote:
+      'Illustrative synthetic reading for portfolio context. No breach story, trend history, or organizational breakdown was supplied.',
     trendCaption: null,
   },
   {
@@ -169,10 +171,11 @@ export const metrics: RawMetric[] = [
     definitionStatus: 'provisional_pending_validation',
     ownerFunction: OWNER,
     controlStatement: null,
-    value: null,
-    asOf: null,
+    value: 99.3,
+    asOf: '2026-10-27',
     breachedOn: null,
-    coverageNote: 'No illustrative reading was supplied, so RAG is not evaluated.',
+    coverageNote:
+      'Illustrative synthetic reading for portfolio context. No breach story, trend history, or organizational breakdown was supplied.',
     trendCaption: null,
   },
   {
@@ -208,10 +211,11 @@ export const metrics: RawMetric[] = [
     definitionStatus: 'provisional_pending_validation',
     ownerFunction: OWNER,
     controlStatement: null,
-    value: null,
-    asOf: null,
+    value: 4,
+    asOf: '2026-10-27',
     breachedOn: null,
-    coverageNote: 'No illustrative reading was supplied, so RAG is not evaluated.',
+    coverageNote:
+      'Illustrative synthetic reading for portfolio context. No breach story, trend history, or organizational breakdown was supplied.',
     trendCaption: null,
   },
 ]

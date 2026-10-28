@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../../backend/services'
 import { ErrorState, LoadingBlock } from '../../components/AsyncStates'
@@ -11,10 +10,6 @@ import { useAsync } from '../../hooks/useAsync'
 export function MetricDetailPage() {
   const { metricId = '' } = useParams()
   const { data, error, loading, retry } = useAsync(() => api.getMetric(metricId), [metricId])
-
-  useEffect(() => {
-    document.title = metricId ? `ControlLens — ${metricId}` : 'ControlLens — Metric'
-  }, [metricId])
 
   if (error && !data) return <ErrorState message={error.message} onRetry={retry} />
   if (loading && !data) return <LoadingBlock label="Loading metric detail" />

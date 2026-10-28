@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { DATA_NOTICE } from '../../backend/contracts/types'
+import type { MetricListItem } from '../../backend/contracts/types'
 import { api } from '../../backend/services'
 import { EmptyState, ErrorState, LoadingBlock } from '../../components/AsyncStates'
 import { StatusBadge } from '../../components/StatusBadge'
@@ -21,10 +22,6 @@ export function RegisterPage() {
     [q, domain, status ?? '', frequency ?? ''],
   )
 
-  useEffect(() => {
-    document.title = 'ControlLens — Metric register'
-  }, [])
-
   function update(next: Record<string, string>) {
     const merged = { q, domain, status: statusParam, frequency: frequencyParam, ...next }
     const cleaned: Record<string, string> = {}
@@ -32,6 +29,18 @@ export function RegisterPage() {
       if (value) cleaned[key] = value
     }
     setParams(cleaned)
+  }
+
+  function exportCsv() {
+    if (!data || data.items.length === 0) return
+    const csv = buildRegisterCsv(data.items)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'controllens-metric-register.csv'
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   if (error && !data) return <ErrorState message={error.message} onRetry={retry} />
@@ -88,9 +97,12 @@ export function RegisterPage() {
         <button type="button" className="secondary" onClick={() => setParams({})}>
           Clear
         </button>
+        <button type="button" className="secondary" onClick={exportCsv} disabled={data.items.length === 0}>
+          Export CSV
+        </button>
       </div>
       <p className="fine">
-        {data.items.length} shown. Sorted by status, then breach date. Readings, where present, are illustrative.
+        {data.items.length} shown. Sorted by status, then breach date. Export CSV downloads this view, including provenance. Readings are illustrative.
         {loading ? ' Updating.' : ''}
       </p>
 
@@ -147,4 +159,62 @@ export function RegisterPage() {
       )}
     </div>
   )
+}
+
+function csvCell(value: string | number | null): string {
+  const text = value == null ? '' : String(value)
+  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`
+  return text
+}
+
+function buildRegisterCsv(items: MetricListItem[]): string {
+  const headers = [
+    'metric_id',
+    'metric_name',
+    'domain',
+    'control_id',
+    'control_statement',
+    'owner_function',
+    'frequency',
+    'direction',
+    'unit',
+    'green_threshold',
+    'amber_threshold',
+    'provisional_definition',
+    'illustrative_reading',
+    'reading_as_of',
+    'reading_origin',
+    'status',
+    'status_basis',
+    'breach_date',
+    'investigation_available',
+    'data_notice',
+  ]
+  const lines = items.map((item) =>
+    [
+      item.metric.id,
+      item.metric.name,
+      item.metric.domain,
+      item.metric.controlId,
+      item.metric.controlStatement,
+      item.metric.ownerFunction,
+      item.metric.frequency,
+      item.metric.direction,
+      item.metric.unit,
+      item.metric.thresholds.green,
+      item.metric.thresholds.amber,
+      item.metric.provisionalDefinition,
+      item.reading.value,
+      item.reading.asOf,
+      item.reading.origin,
+      item.reading.status,
+      item.reading.statusBasis,
+      item.reading.breachedOn,
+      item.investigationAvailable ? 'yes' : 'no',
+      DATA_NOTICE,
+    ]
+      .map(csvCell)
+      .join(','),
+  )
+  return `\uFEFF${headers.join(',')}\n${lines.join('\n')}\n`
 }

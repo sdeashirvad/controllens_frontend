@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../../backend/services'
 import { EmptyState, ErrorState, LoadingBlock } from '../../components/AsyncStates'
@@ -9,17 +8,23 @@ import { useAsync } from '../../hooks/useAsync'
 export function OverviewPage() {
   const [params, setParams] = useSearchParams()
   const domain = params.get('domain') ?? ''
-  const { data, error, loading, retry } = useAsync(() => api.getOverview(domain ? { domain } : undefined), [domain])
-
-  useEffect(() => {
-    document.title = 'ControlLens — Overview'
-  }, [])
+  const { data, error, loading, retry } = useAsync(async () => {
+    const [overview, ...cases] = await Promise.all([
+      api.getOverview(domain ? { domain } : undefined),
+      api.getInvestigation('M001'),
+      api.getInvestigation('M003'),
+      api.getInvestigation('M007'),
+      api.getInvestigation('M004'),
+    ])
+    return { overview, cases }
+  }, [domain])
 
   if (error && !data) return <ErrorState message={error.message} onRetry={retry} />
   if (loading && !data) return <LoadingBlock label="Loading the portfolio" />
   if (!data) return null
 
-  const portfolio = data.portfolio
+  const overview = data.overview
+  const portfolio = overview.portfolio
 
   return (
     <div className="page">
@@ -27,7 +32,7 @@ export function OverviewPage() {
         <p className="eyebrow">Policy Control Office</p>
         <h1>Technology risk position</h1>
         <p className="lede">
-          Four seeded breaches are ready to investigate. The register holds ten metrics. A missing reading stays unevaluated.
+          Four seeded breaches are ready to investigate. Additional illustrative readings show a mixed book. Two metrics stay unevaluated.
         </p>
       </header>
 
@@ -39,7 +44,7 @@ export function OverviewPage() {
           <div className="stat tone-insufficient"><b>{portfolio.insufficientData}</b><span>Not evaluated</span></div>
           <div className="stat"><b>{portfolio.total}</b><span>In register</span></div>
         </div>
-        <p className="fine">{data.asOfLabel}</p>
+        <p className="fine">{overview.asOfLabel}</p>
         {portfolio.insufficientData > 0 && (
           <p className="fine">
             {portfolio.insufficientData} register metrics have no illustrative reading. Their status is Not evaluated, which is not a green assessment.
@@ -57,7 +62,7 @@ export function OverviewPage() {
             <button type="button" className="chip" aria-pressed={domain === ''} onClick={() => setParams({})}>
               All
             </button>
-            {data.investigationDomains.map((item) => (
+            {overview.investigationDomains.map((item) => (
               <button
                 key={item}
                 type="button"
@@ -70,11 +75,11 @@ export function OverviewPage() {
             ))}
           </div>
           <p className="fine">Portfolio counts stay on the full register. This filter applies only to the investigation list.</p>
-          {data.investigations.length === 0 ? (
+          {overview.investigations.length === 0 ? (
             <EmptyState title="No investigations in this domain" body="Choose another domain or return to all seeded cases." />
           ) : (
             <div className="inv-list">
-              {data.investigations.map((item) => (
+              {overview.investigations.map((item) => (
                 <Link key={item.metricId} className="inv-row" to={`/investigations/${item.metricId}`}>
                   <StatusBadge status={item.status} />
                   <div>
@@ -102,7 +107,7 @@ export function OverviewPage() {
           <section className="panel">
             <h2>Recent deterioration</h2>
             <ol className="timeline">
-              {data.deterioration.map((event) => (
+              {overview.deterioration.map((event) => (
                 <li key={event.metricId}>
                   <div className="tl-top">
                     <time dateTime={event.date}>{formatDate(event.date)}</time>
@@ -117,7 +122,7 @@ export function OverviewPage() {
             <h2>Organizational hotspots</h2>
             <p className="fine">Shown only for M001 and M003. Figures are illustrative.</p>
             <div className="callout-list">
-              {data.hotspotCallouts.map((item) => (
+              {overview.hotspotCallouts.map((item) => (
                 <Link key={item.metricId} className="callout" to={`/investigations/${item.metricId}`}>
                   <span className="mono">{item.metricId}</span>
                   <strong>{item.group}</strong>
@@ -126,10 +131,27 @@ export function OverviewPage() {
               ))}
             </div>
           </section>
-          <section className="panel note-panel">
-            <h2>Data still to verify</h2>
-            <p>{data.validationNote}</p>
-          </section>
+          <details className="panel disclosure">
+            <summary>Pending validation</summary>
+            <p className="fine">
+              Checks still required before the seeded stories can be treated as evidenced. This is a validation queue, not a remediation tracker. No owner or deadline was supplied.
+            </p>
+            {data.cases.map((item) => (
+              <div key={item.metricId} className="validate-case">
+                <Link to={`/investigations/${item.metricId}`}>{item.metricId}</Link>
+                <ul>
+                  {item.pathToGreen.checks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <h3>Data discovery</h3>
+            <ul>
+              <li>Confirm whether SMARTS holds metric-by-organization breakdowns.</li>
+              <li>Confirm whether change and incident records can be joined to metrics.</li>
+            </ul>
+          </details>
         </aside>
       </div>
     </div>

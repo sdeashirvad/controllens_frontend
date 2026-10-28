@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../../backend/services'
 import { ErrorState, LoadingBlock } from '../../components/AsyncStates'
@@ -9,6 +9,15 @@ import { TrendChart } from '../../components/TrendChart'
 import { directionLabel, displayOrMissing, formatDate, formatNumber } from '../../domain/format'
 import { useAsync } from '../../hooks/useAsync'
 
+const STAGE_MS = 1440
+
+const ANALYSIS_STAGES = [
+  'Retrieving the control definition, direction, and thresholds',
+  'Placing the illustrative reading against the green and amber lines',
+  'Separating what the scenario states from what is still a hypothesis',
+  'Checking for an organizational contribution, and stopping where none was supplied',
+]
+
 export function InvestigationPage() {
   const { metricId = '' } = useParams()
   const { data, error, loading, retry } = useAsync(async () => {
@@ -18,10 +27,30 @@ export function InvestigationPage() {
     ])
     return { investigation, detail }
   }, [metricId])
+  const [revealedId, setRevealedId] = useState<string | null>(null)
+  const [step, setStep] = useState(0)
 
   useEffect(() => {
-    document.title = metricId ? `ControlLens — Investigation ${metricId}` : 'ControlLens — Investigation'
-  }, [metricId])
+    if (!data || data.detail.metric.id !== metricId) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) {
+      setRevealedId(metricId)
+      return
+    }
+    setRevealedId(null)
+    setStep(0)
+    let current = 0
+    const timer = window.setInterval(() => {
+      current += 1
+      if (current >= ANALYSIS_STAGES.length) {
+        window.clearInterval(timer)
+        setRevealedId(metricId)
+        return
+      }
+      setStep(current)
+    }, STAGE_MS)
+    return () => window.clearInterval(timer)
+  }, [data, metricId])
 
   if (error && !data) return <ErrorState message={error.message} onRetry={retry} />
   if (loading && !data) return <LoadingBlock label="Loading investigation" />
@@ -30,6 +59,14 @@ export function InvestigationPage() {
   const { investigation, detail } = data
   const { metric, reading } = detail
   const org = investigation.orgContribution
+  const showReport = revealedId === metric.id
+
+  function printReport() {
+    document.querySelectorAll('.page details').forEach((node) => {
+      node.setAttribute('open', '')
+    })
+    window.print()
+  }
 
   return (
     <div className="page">
@@ -61,11 +98,35 @@ export function InvestigationPage() {
           <div><dt>As of</dt><dd>{reading.asOf ? formatDate(reading.asOf) : 'Not supplied'}</dd></div>
           <div><dt>Breach date</dt><dd>{reading.breachedOn ? formatDate(reading.breachedOn) : 'Not supplied'}</dd></div>
         </dl>
-        <p>
+        <p className="header-actions no-print">
           <Link to="/">Back to overview</Link>
+          <button type="button" className="secondary" onClick={printReport} disabled={!showReport}>
+            Print / Save PDF
+          </button>
         </p>
       </header>
 
+      {!showReport && (
+        <section className="panel analysis no-print" aria-live="polite">
+          <p className="eyebrow">Simulated analysis · {step + 1} of {ANALYSIS_STAGES.length}</p>
+          <h2>{ANALYSIS_STAGES[step]}</h2>
+          <p className="fine">
+            Working through a fixed sequence in the browser. This does not call Snowflake Cortex, a model, or SMARTS.
+          </p>
+          <div className="analysis-track" aria-hidden="true">
+            <span key={step} />
+          </div>
+          {step > 0 && (
+            <ol className="stages">
+              {ANALYSIS_STAGES.slice(0, step).map((label) => (
+                <li key={label} className="is-done">{label}</li>
+              ))}
+            </ol>
+          )}
+        </section>
+      )}
+
+      {showReport && (
       <div className="workbench">
         <div className="stack">
           <section className="panel summary">
@@ -75,20 +136,10 @@ export function InvestigationPage() {
             <p>{metric.provisionalDefinition}</p>
             <p>{investigation.summary.text}</p>
             <p className="fine">{investigation.summary.disclaimer}</p>
+            <p className="fine">Simulated analysis finished in the browser. This report was not produced by Snowflake Cortex.</p>
           </section>
 
           <p className="provenance">{investigation.timelineNote}</p>
-
-          <section className="panel">
-            <h2>Illustrative trend</h2>
-            <TrendChart
-              points={detail.trend}
-              unit={metric.unit}
-              thresholds={metric.thresholds}
-              breachDate={reading.breachedOn}
-              caption={detail.trendCaption}
-            />
-          </section>
 
           <section className="split">
             <div className="panel">
@@ -102,24 +153,7 @@ export function InvestigationPage() {
           </section>
 
           <section className="panel">
-            <h2>Breach timeline</h2>
-            <ol className="timeline">
-              {investigation.timeline.map((event) => (
-                <li key={`${event.date ?? 'undated'}-${event.label}`}>
-                  <div className="tl-top">
-                    <span className={event.kind === 'scenario_fact' ? 'tag tag-fact' : 'tag tag-illustrative'}>
-                      {event.provenanceLabel}
-                    </span>
-                    <time>{event.date ? formatDate(event.date) : 'Date not supplied'}</time>
-                  </div>
-                  <p>{event.label}</p>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="panel">
-            <h2>Causal signals, evidence, and gaps</h2>
+            <h2>Causal assessment</h2>
             <div className="stack">
               {investigation.signals.map((signal) => (
                 <article
@@ -133,13 +167,16 @@ export function InvestigationPage() {
                     <h3>{signal.title}</h3>
                   </div>
                   <p>{signal.statement}</p>
-                  <p><strong>Evidence on hand. </strong>{signal.evidenceNote}</p>
-                  <h4>Still to validate</h4>
-                  <ul>
-                    {signal.gaps.map((gap) => (
-                      <li key={gap}>{gap}</li>
-                    ))}
-                  </ul>
+                  <details>
+                    <summary>Evidence and gaps</summary>
+                    <p><strong>Evidence on hand. </strong>{signal.evidenceNote}</p>
+                    <h4>Still to validate</h4>
+                    <ul>
+                      {signal.gaps.map((gap) => (
+                        <li key={gap}>{gap}</li>
+                      ))}
+                    </ul>
+                  </details>
                 </article>
               ))}
             </div>
@@ -167,6 +204,30 @@ export function InvestigationPage() {
               </div>
             </div>
           </section>
+
+          <details className="panel disclosure">
+            <summary>Breach timeline and illustrative trend</summary>
+            <ol className="timeline">
+              {investigation.timeline.map((event) => (
+                <li key={`${event.date ?? 'undated'}-${event.label}`}>
+                  <div className="tl-top">
+                    <span className={event.kind === 'scenario_fact' ? 'tag tag-fact' : 'tag tag-illustrative'}>
+                      {event.provenanceLabel}
+                    </span>
+                    <time>{event.date ? formatDate(event.date) : 'Date not supplied'}</time>
+                  </div>
+                  <p>{event.label}</p>
+                </li>
+              ))}
+            </ol>
+            <TrendChart
+              points={detail.trend}
+              unit={metric.unit}
+              thresholds={metric.thresholds}
+              breachDate={reading.breachedOn}
+              caption={detail.trendCaption}
+            />
+          </details>
         </div>
 
         <aside className="stack">
@@ -195,8 +256,8 @@ export function InvestigationPage() {
               <p className="provenance">{org.reason}</p>
             )}
           </section>
-          <section className="panel">
-            <h2>Data lineage</h2>
+          <details className="panel disclosure">
+            <summary>Data lineage and provenance</summary>
             <dl className="lineage">
               {investigation.lineage.map((item) => (
                 <div key={item.label}>
@@ -205,13 +266,14 @@ export function InvestigationPage() {
                 </div>
               ))}
             </dl>
-          </section>
+          </details>
           <section className="panel note-panel">
             <h2>Data still to verify</h2>
             <p>{investigation.validationNote}</p>
           </section>
         </aside>
       </div>
+      )}
     </div>
   )
 }

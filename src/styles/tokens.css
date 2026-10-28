@@ -1,0 +1,26 @@
+:root {
+  --navy: #0b1f33;
+  --navy-800: #16324a;
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --border: #d5dde5;
+  --text: #14202b;
+  --muted: #4e5d6c;
+  --red: #8e1e24;
+  --red-bg: #f8e8e8;
+  --amber: #6f4b00;
+  --amber-bg: #f8f1de;
+  --green: #145c38;
+  --green-bg: #e5f2ea;
+  --info: #1f4e79;
+  --insufficient: #3e4c5a;
+  --insufficient-bg: #e8edf2;
+  --focus: #1f4e79;
+  --shadow: 0 1px 2px rgba(20, 32, 43, 0.06);
+  --font: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --sidebar: 232px;
+  color: var(--text);
+  background: var(--bg);
+  font: 14px/1.5 var(--font);
+}
